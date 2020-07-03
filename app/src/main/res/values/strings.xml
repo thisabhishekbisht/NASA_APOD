@@ -2,4 +2,7 @@
     <string name="app_name">NASA Photo of the Day</string>
     <string name="api_key">"jgGvWNtENQ2k4igu1Rzoy7QWt4fRpbJkSrsefXGS"</string>
 
+    <string name="player_error">Error initializing YouTube player: %s</string>
+    <string name="seek_to">Jump To</string>
+    <string name="seek_to_hint">Seconds</string>
 </resources>

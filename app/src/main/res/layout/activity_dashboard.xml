@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/rootContainer"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -68,12 +68,21 @@
                 android:visibility="visible"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"/>
-            <VideoView
-                android:id="@+id/videoView"
+       <!--     <com.google.android.youtube.player.YouTubePlayerView
+                android:id="@+id/youtubeView"
                 android:visibility="gone"
                 android:layout_gravity="center"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"/>
+
+            -->
+
+            <com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/youtubeView"
+                android:visibility="gone"
+                app:autoPlay="false" />
 
 
         </LinearLayout>
@@ -118,7 +127,7 @@
 
             <ImageView
                 android:id="@+id/iv_Zoom"
-                android:layout_width="93dp"
+                android:layout_width="80dp"
                 android:layout_height="80dp"
                />
         </LinearLayout>

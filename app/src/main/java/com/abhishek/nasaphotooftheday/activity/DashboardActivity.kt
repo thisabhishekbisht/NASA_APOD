@@ -6,14 +6,16 @@ import android.content.Context
 import android.content.DialogInterface
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
 import android.os.Bundle
 import android.text.method.ScrollingMovementMethod
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.View
-import android.widget.*
+import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.annotation.NonNull
 import androidx.appcompat.app.AppCompatActivity
 import com.abhishek.nasaphotooftheday.R
 import com.abhishek.nasaphotooftheday.model.APODModel
@@ -22,32 +24,37 @@ import com.abhishek.nasaphotooftheday.retrofit.RetrofitApiInterface
 import com.abhishek.nasaphotooftheday.retrofit.RetrofitClient
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import dmax.dialog.SpotsDialog
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.regex.Matcher
+import java.util.regex.Pattern
 
 
 class DashboardActivity : AppCompatActivity() {
-    var videoView: VideoView? = null
+    var youtubeView: YouTubePlayerView? = null
     var zoomView: ImageView? = null
     var calender: ImageView? = null
     var tv_title: TextView? = null
     var tv_discription: TextView? = null
     var imageView_APOD: ImageView? = null
-
+    lateinit var url: String
     var mediaType_Image: Boolean = true
     var isImageFitToScreen: Boolean = false
     lateinit var layout_first: View
     lateinit var layout_second: View
-
     lateinit var layout_third: View
-
-    //
+    private val RECOVERY_REQUEST = 1
     lateinit var dialog: AlertDialog
     var isFirstEntry: Boolean = true
+    var isVedioViewShowing: Boolean = false
+    var isYoutubeViewZoomed: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -131,19 +138,17 @@ class DashboardActivity : AppCompatActivity() {
             }
             // else is vedio
             else {
-
-                layout_third.layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.MATCH_PARENT
+                isYoutubeViewZoomed = true
+                layout_third.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT
                 )
                 val metrics = DisplayMetrics()
                 windowManager.defaultDisplay.getMetrics(metrics)
                 val params =
-                    videoView!!.layoutParams as LinearLayout.LayoutParams
+                    youtubeView!!.layoutParams as LinearLayout.LayoutParams
                 params.width = metrics.widthPixels
                 params.height = metrics.heightPixels
                 params.leftMargin = 0
-                videoView!!.layoutParams = params
+                youtubeView!!.layoutParams = params
 
             }
 
@@ -185,14 +190,20 @@ class DashboardActivity : AppCompatActivity() {
                         if (response.isSuccessful) {
 
                             //
+                            var hdurl: String ?= null
                             isFirstEntry = false
                             // hide dialouge when sucessfull response
                             hideProgressDialouge()
-                            var title: String = response.body()?.title!!
-                            var discription: String = response.body()?.explanation!!
-                            var mediaType: String = response.body()?.mediaType!!
-                            var hdurl: String = response.body()?.hdurl!!
-                            var url: String = response.body()?.url!!
+                            var title: String ?= response.body()?.title!!
+                            var discription: String ?= response.body()?.explanation!!
+                            var mediaType: String ?= response.body()?.mediaType!!
+
+                            if(mediaType.equals("image"))
+                            {
+                              hdurl  = response.body()?.hdurl!!
+                            }
+
+                            url = response.body()?.url!!
 
                             // set recieved data to fileds
 
@@ -206,11 +217,19 @@ class DashboardActivity : AppCompatActivity() {
                                 zoomView?.setImageResource(R.drawable.ic_baseline_zoom_in_24)
 
                                 imageView_APOD?.let {
-                                  loadImageIntoView(hdurl)
+                                    if (hdurl != null) {
+                                        loadImageIntoView(hdurl)
+                                    }
+                                    else
+                                    {
+                                        Toast.makeText(this@DashboardActivity, "HDURL is NUll , Please try later", Toast.LENGTH_LONG)
+                                            .show()
+                                    }
                                 }
 
                             } else {
-                                 // set image resource
+                                 // else is vedio  show youtubeview
+
                                 zoomView?.setImageResource(R.drawable.ic_baseline_play_arrow_24)
                                 //
                                 mediaType_Image = false
@@ -218,14 +237,16 @@ class DashboardActivity : AppCompatActivity() {
 
                                 imageView_APOD?.visibility = View.GONE
 
-                                videoView?.visibility = View.VISIBLE
+                                youtubeView?.visibility = View.VISIBLE
+
+                                isVedioViewShowing = true
 
                                 // play vedio
-                                playVedioWithUri(hdurl)
+                                playVedioWithUri()
                             }
 
 
-                            Toast.makeText(this@DashboardActivity, "Sucessful", Toast.LENGTH_LONG)
+                            Toast.makeText(this@DashboardActivity, "Sucessful" +isVedioViewShowing, Toast.LENGTH_LONG)
                                 .show()
 
 
@@ -304,7 +325,29 @@ class DashboardActivity : AppCompatActivity() {
             // set weight
             layout_second.layoutParams =
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f)
-        } else {
+        } else if(isYoutubeViewZoomed){
+
+            // show youtubeView and hide image view
+            layout_third.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 2.0f)
+
+
+            youtubeView?.setLayoutParams(LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT
+                )
+            )
+
+            isYoutubeViewZoomed = false
+            layout_first?.visibility = View.VISIBLE
+            // set weight
+            layout_first.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f)
+
+            layout_second?.visibility = View.VISIBLE
+
+            // set weight
+            layout_second.layoutParams =
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f)
+
+        }
+        else{
             // do nothing
             super.onBackPressed()
         }
@@ -336,53 +379,95 @@ class DashboardActivity : AppCompatActivity() {
                         response: Response<APODWithDateModel>
                     ) {
                         if (response.isSuccessful) {
-
+                            var hdurl: String ?= null
                             // set progress bar gone
                             hideProgressDialouge()
 
-                            var title: String = response.body()?.title!!
+                            var title: String ?= response.body()?.title!!
+                            var discription: String ? = response.body()?.explanation!!
+                            var mediaType: String ?= response.body()?.mediaType!!
 
-                            Toast.makeText(
-                                this@DashboardActivity,
-                                "Data is being updated for Given Date " + title,
-                                Toast.LENGTH_LONG
-                            ).show()
-                            var discription: String = response.body()?.explanation!!
-                            var mediaType: String = response.body()?.mediaType!!
-                            var hdurl: String = response.body()?.hdurl!!
-                            var url: String = response.body()?.url!!
+                            url = response.body()?.url!!
 
                             // set recieved data to fileds
 
                             tv_title?.setText(title)
                             tv_discription?.setText(discription)
 
+                            // when media type is image
                             if (mediaType.equals("image")) {
+
+                                hdurl = response.body()?.hdurl!!
+                                zoomView?.setImageResource(R.drawable.ic_baseline_zoom_in_24)
+
                                 mediaType_Image = true
                                 // download image using library and show it in image view
 
-                              loadImageIntoView(hdurl)
+                                // check if vedio player is showing already or not
 
-                            } else {
+                                if(isVedioViewShowing)
+                                {
+
+                                    Toast.makeText(
+                                        this@DashboardActivity,
+                                        "Data is being updated for Given Date " +" VEdio showing true" + title,
+                                        Toast.LENGTH_LONG
+                                    ).show()
+
+                                    // vedio player is showing
+
+
+                                    // hide yotubeView  and show image player
+                                    imageView_APOD?.visibility = View.VISIBLE
+
+                                    youtubeView?.visibility = View.GONE
+
+                                    isVedioViewShowing=false
+
+                                }
+                                else
+                                {
+                             // do nothing image will be loaded to imageview
+                                }
+
+                                hdurl.let { loadImageIntoView(it) }
+
+                            }
+                            // when media type is vedio show vedioview and hide image view
+                            else {
 
                                 mediaType_Image = false
-                                // hide image view and show vedio player
+                               // check if vedio is already shwing
+                                if(isVedioViewShowing)
+                                {
+                                    // do nothing
+                                    // vedio will be loaded to the player
+                                }
+                                else
+                                {
+                                    isVedioViewShowing =true
 
-                                imageView_APOD?.visibility = View.GONE
+                                    // hide image view and show vedio player
 
-                                videoView?.visibility = View.VISIBLE
+                                    imageView_APOD?.visibility = View.GONE
+
+                                    youtubeView?.visibility = View.VISIBLE
+                                }
+                                zoomView?.setImageResource(R.drawable.ic_baseline_play_arrow_24)
 
                                 // play vedio
-                                playVedioWithUri(hdurl)
+                                playVedioWithUri()
                             }
+                            Toast.makeText(
+                                this@DashboardActivity,
+                                "Data is being updated for Given Date" ,
+                                Toast.LENGTH_LONG
+                            ).show()
                         } else {
                             // hide dilaouge
                             hideProgressDialouge()
-                            Toast.makeText(
-                                this@DashboardActivity,
-                                "Error with Response",
-                                Toast.LENGTH_LONG
-                            )
+                            Toast.makeText(this@DashboardActivity, "Error with Response", Toast.LENGTH_LONG
+                            ).show()
                         }
                     }
 
@@ -429,7 +514,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun init() {
         imageView_APOD = findViewById(R.id.imageView_APOD)
-        videoView = findViewById(R.id.videoView)
+        youtubeView = findViewById(R.id.youtubeView)
         calender = findViewById(R.id.view_Calender)
         zoomView = findViewById(R.id.iv_Zoom)
         // textview
@@ -466,17 +551,28 @@ class DashboardActivity : AppCompatActivity() {
         return false
     }
 
-    private fun playVedioWithUri(s: String) {
+    private fun playVedioWithUri() {
         //Creating MediaController
-        val mediaController = MediaController(this)
-        mediaController.setAnchorView(videoView)
-        //specify the location of media file
 
-        //Setting MediaController and URI, then starting the videoView
-        videoView?.setMediaController(mediaController)
-        videoView?.setVideoURI(Uri.parse(s))
-        videoView?.requestFocus()
-        videoView?.start()
+        getLifecycle().addObserver(this!!.youtubeView!!);
+
+        youtubeView?.addYouTubePlayerListener(object : AbstractYouTubePlayerListener() {
+            override fun onReady(@NonNull youTubePlayer: YouTubePlayer) {
+                val videoId = getYouTubeId (url)
+                videoId?.let { youTubePlayer.loadVideo(it, 0F) }
+            }
+        })
+    }
+
+    private fun getYouTubeId(youTubeUrl: String): String? {
+        val pattern = "(?<=youtu.be/|watch\\?v=|/videos/|embed\\/)[^#\\&\\?]*"
+        val compiledPattern: Pattern = Pattern.compile(pattern)
+        val matcher: Matcher = compiledPattern.matcher(youTubeUrl)
+        return if (matcher.find()) {
+            matcher.group()
+        } else {
+            "error"
+        }
     }
 }
 

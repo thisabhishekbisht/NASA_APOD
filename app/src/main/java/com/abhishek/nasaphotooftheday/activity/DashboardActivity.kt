@@ -469,7 +469,7 @@ class DashboardActivity : AppCompatActivity() {
                             Toast.makeText(this@DashboardActivity, "Error with Response", Toast.LENGTH_LONG
                             ).show()
                         }
-                    }
+                    } 
 
                     override fun onFailure(call: Call<APODWithDateModel>, t: Throwable) {
                         Toast.makeText(this@DashboardActivity, "${t.message}", Toast.LENGTH_SHORT)

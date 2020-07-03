@@ -408,11 +408,7 @@ class DashboardActivity : AppCompatActivity() {
                                 if(isVedioViewShowing)
                                 {
 
-                                    Toast.makeText(
-                                        this@DashboardActivity,
-                                        "Data is being updated for Given Date " +" VEdio showing true" + title,
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                       
 
                                     // vedio player is showing
 
